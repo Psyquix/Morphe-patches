@@ -31,7 +31,22 @@ jobs:
             NEW_VER="$(echo "$OUT" | head -n 1)"
             BRANCH="chore/reddit-retarget-${NEW_VER}"
             KT="patches/src/main/kotlin/app/morphe/patches/reddit/shared/Constants.kt"
-            sed -i '0,/version = "[^"]*"/s//version = "'"$NEW_VER"'"/' "$KT"
+            python3 - "$KT" "$NEW_VER" <<'EOF'
+            import re, sys
+            path, ver = sys.argv[1], sys.argv[2]
+            src = open(path).read().splitlines(keepends=True)
+            idx = next((i for i, l in enumerate(src) if 'COMPATIBILITY_REDDIT' in l), None)
+            if idx is None:
+                sys.exit('error: COMPATIBILITY_REDDIT marker not found in %s' % path)
+            pat = re.compile(r'version\s*=\s*"[^"]*"')
+            for j in range(idx, len(src)):
+                if pat.search(src[j]):
+                    src[j] = pat.sub('version = "%s"' % ver, src[j], count=1)
+                    break
+            else:
+                sys.exit('error: no version assignment found after COMPATIBILITY_REDDIT marker in %s' % path)
+            open(path, 'w').writelines(src)
+            EOF
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git checkout -b "$BRANCH"
