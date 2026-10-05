@@ -1,5 +1,9 @@
 name: Check upstream Reddit
 
+permissions:
+  contents: write
+  pull-requests: write
+
 on:
   schedule:
     - cron: "0 */6 * * *"

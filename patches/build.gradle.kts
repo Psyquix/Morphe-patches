@@ -4,7 +4,7 @@ patches {
     about {
         name = "Morphe Patches (Reddit Share Username)"
         description = "Patches for apps I like"
-        source = "git@github.com:<owner>/Morphe-patches.git"
+        source = "git@github.com:Psyquix/Morphe-patches.git"
         author = "Awesome dev"
         contact = "na"
         website = "na"
