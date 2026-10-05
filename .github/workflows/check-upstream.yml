@@ -3,6 +3,7 @@ name: Check upstream Reddit
 permissions:
   contents: write
   pull-requests: write
+  packages: read
 
 on:
   schedule:
@@ -34,32 +35,17 @@ jobs:
           if [ "$CODE" -eq 10 ]; then
             NEW_VER="$(echo "$OUT" | head -n 1)"
             BRANCH="chore/reddit-retarget-${NEW_VER}"
-            KT="patches/src/main/kotlin/app/morphe/patches/reddit/shared/Constants.kt"
-            python3 - "$KT" "$NEW_VER" <<'EOF'
-            import re, sys
-            path, ver = sys.argv[1], sys.argv[2]
-            src = open(path).read().splitlines(keepends=True)
-            idx = next((i for i, l in enumerate(src) if 'COMPATIBILITY_REDDIT' in l), None)
-            if idx is None:
-                sys.exit('error: COMPATIBILITY_REDDIT marker not found in %s' % path)
-            pat = re.compile(r'version\s*=\s*"[^"]*"')
-            for j in range(idx, len(src)):
-                if pat.search(src[j]):
-                    src[j] = pat.sub('version = "%s"' % ver, src[j], count=1)
-                    break
-            else:
-                sys.exit('error: no version assignment found after COMPATIBILITY_REDDIT marker in %s' % path)
-            open(path, 'w').writelines(src)
-            EOF
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git checkout -b "$BRANCH"
-            git add reddit-target.txt "$KT"
+            git add reddit-target.txt \
+              patches/src/main/kotlin/app/morphe/patches/reddit/shared/Constants.kt \
+              README.md
             git commit -m "chore: retarget reddit to $NEW_VER"
             git push origin "$BRANCH"
-            gh pr create --head "$BRANCH" --base main \
+            gh pr create --head "$BRANCH" --base master \
               --title "chore: retarget reddit to $NEW_VER" \
-              --body "Upstream Reddit target moved to $NEW_VER. Test-gated build runs on this PR; no auto-merge." \
+              --body "Upstream Reddit target moved to $NEW_VER (target, patch compat and README updated). Test-gated build runs on this PR; no auto-merge. After merge, the release workflow publishes $NEW_VER automatically." \
               --label upstream-retarget
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "version=$NEW_VER" >> "$GITHUB_OUTPUT"

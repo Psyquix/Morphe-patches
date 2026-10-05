@@ -1,43 +1,40 @@
 # Morphe-patches
 
-Reddit patches for the Morphe patcher.
+Reddit patches for the Morphe patcher, plus automation that tracks upstream Reddit versions and publishes releases.
 
 ![Build](https://github.com/Psyquix/Morphe-patches/actions/workflows/build.yml/badge.svg)
 
 ## Patches
 
-| Patch | Description | Target |
-| ----- | ----------- | ------ |
-| Share profile as username | Shares user profile links as username only. | com.reddit.frontpage 2026.40.0 (exp) |
+| Patch | What it does | Target |
+| ----- | ------------ | ------ |
+| Share profile as username | When you share a user profile page, it shares just the username instead of the full link. | <!-- REDDIT-VERSION -->com.reddit.frontpage 2026.40.0 (exp)<!-- /REDDIT-VERSION --> |
+
+### Share profile as username
+
+- **ON:** sharing a profile like `https://www.reddit.com/user/rere` puts just `rere` in the share sheet / clipboard.
+- **OFF:** stock behavior — the full profile URL is shared, unmodified.
+- Profile links with tracking junk (e.g. `https://www.reddit.com/user/rere/?utm_source=share`) are still shortened to `rere`.
+- Anything that is not a user profile (posts, subreddits, comments) is never touched.
 
 ## Compatibility
 
-- `com.reddit.frontpage` version `2026.40.0` (experimental).
-- Current target is pinned in `reddit-target.txt`.
+- `com.reddit.frontpage` version <!-- REDDIT-VERSION -->2026.40.0<!-- /REDDIT-VERSION --> (experimental).
+- The pinned version lives in `reddit-target.txt` — it is the single source of truth. The version strings above update automatically (see below); never edit them by hand.
 
-## Toggle behavior
+## How updates work (automatic)
 
-- ON: profile share links matching `reddit.com/user/<name>` are shortened to the bare username.
-- OFF: stock share behavior (full profile URL, unmodified).
-- Non-profile links pass through unchanged.
-
-## Upstream tracking
-
-- `reddit-target.txt` pins the Reddit version the patches build against.
-- The 6h checker (`.github/workflows/check-upstream.yml`) polls upstream on a 6-hour
-  schedule; on a version move it opens a PR labeled `upstream-retarget`.
-- Retarget PRs are test-gated (tests must pass before the patch bundle builds) with
-  no auto-merge — merging stays a human decision.
+1. Every 6 hours the checker (`.github/workflows/check-upstream.yml`) compares upstream `MorpheApp/morphe-patches` Reddit support against `reddit-target.txt`.
+2. On a version move it opens a PR labeled `upstream-retarget` that bumps the target, the patch compatibility, and this README. Builds on the PR are test-gated and there is no auto-merge — merging stays human.
+3. Once the update is merged to `master`, the release workflow (`.github/workflows/release.yml`) automatically tests, builds, tags it `<reddit>-morphe-ver-<nn>` (e.g. `2026.40.0-morphe-ver-01`, `nn` ticks up per patch revision), and publishes a Release.
+4. Release notes show only the Reddit version the bundle was built for.
 
 ## Morphed wiring
 
-Add both patch sources, then scope with `|`-separated lists:
+Use this bundle alongside upstream patches, then scope with `|`-separated lists:
 
 ```toml
 patches-source = "'MorpheApp/morphe-patches' 'Psyquix/Morphe-patches'"
 excluded-patches = "Share profile as username | <other-patch>"
 included-patches = "Share profile as username | <other-patch>"
 ```
-
-> Remote visibility (public vs private) for `github.com/Psyquix/Morphe-patches`
-> stays human-confirmed at finish; the remote has not been created yet.
