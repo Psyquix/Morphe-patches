@@ -85,4 +85,22 @@ public class ShareProfileUsernameTest {
     void emptyShortUserSegmentPassthrough() {
         assertEquals("https://www.reddit.com/u/", ShareProfileUsername.shortenProfileLink("https://www.reddit.com/u/"));
     }
+
+    @Test
+    void wasShortenedTrueForProfileLink() {
+        assertEquals(true, ShareProfileUsername.wasShortened(
+                "https://www.reddit.com/u/LowMarket6464/s/5sPZgIEqx8", "LowMarket6464"));
+    }
+
+    @Test
+    void wasShortenedFalseWhenUnchanged() {
+        assertEquals(false, ShareProfileUsername.wasShortened(
+                "https://www.reddit.com/r/funny/comments/1abc/",
+                "https://www.reddit.com/r/funny/comments/1abc/"));
+    }
+
+    @Test
+    void wasShortenedFalseForNullShortened() {
+        assertEquals(false, ShareProfileUsername.wasShortened("https://www.reddit.com/u/rere", null));
+    }
 }

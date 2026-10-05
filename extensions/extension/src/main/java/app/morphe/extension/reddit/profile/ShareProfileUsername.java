@@ -18,4 +18,8 @@ public class ShareProfileUsername {
         }
         return url;
     }
+
+    public static boolean wasShortened(String original, String shortened) {
+        return shortened != null && !shortened.equals(original) && shortened.indexOf("://") < 0;
+    }
 }
