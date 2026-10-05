@@ -21,6 +21,7 @@ Reddit patches for the Morphe patcher, plus automation that tracks upstream Redd
 
 - `com.reddit.frontpage` version <!-- REDDIT-VERSION -->2026.40.0<!-- /REDDIT-VERSION --> (experimental).
 - The pinned version lives in `reddit-target.txt` — it is the single source of truth. The version strings above update automatically (see below); never edit them by hand.
+- Backward-compatible with the stable and experimental Reddits Morphed builds (currently 2026.24.0 / 2026.39.0) — same share-formatter hook as upstream's sanitize patch.
 
 ## How updates work (automatic)
 
