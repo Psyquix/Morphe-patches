@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 public class ShareProfileUsername {
 
     private static final Pattern PROFILE_LINK =
-            Pattern.compile("^https?://(www\\.|old\\.)?reddit\\.com/user/([^/?#]+).*", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("^https?://(www\\.|old\\.)?reddit\\.com/(?:user|u)/([^/?#]+).*", Pattern.CASE_INSENSITIVE);
 
     public static String shortenProfileLink(String url) {
         if (url == null || url.isEmpty()) {

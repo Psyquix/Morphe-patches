@@ -63,4 +63,26 @@ public class ShareProfileUsernameTest {
     void httpBareDomain() {
         assertEquals("rere", ShareProfileUsername.shortenProfileLink("http://reddit.com/user/rere"));
     }
+
+    @Test
+    void newShortProfileShareLink() {
+        assertEquals(
+                "LowMarket6464",
+                ShareProfileUsername.shortenProfileLink("https://www.reddit.com/u/LowMarket6464/s/5sPZgIEqx8"));
+    }
+
+    @Test
+    void shortUserPath() {
+        assertEquals("rere", ShareProfileUsername.shortenProfileLink("https://www.reddit.com/u/rere"));
+    }
+
+    @Test
+    void shortUserPathTrailingSlash() {
+        assertEquals("rere", ShareProfileUsername.shortenProfileLink("https://old.reddit.com/u/rere/"));
+    }
+
+    @Test
+    void emptyShortUserSegmentPassthrough() {
+        assertEquals("https://www.reddit.com/u/", ShareProfileUsername.shortenProfileLink("https://www.reddit.com/u/"));
+    }
 }
