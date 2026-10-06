@@ -1,5 +1,13 @@
 package app.morphe.extension.reddit.profile;
 
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.widget.Toast;
+
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,6 +33,34 @@ public class ProfileShareActions {
             return null;
         }
         return "https://ghostddit.aeddit.com/user/" + encodeUsername(username) + "/";
+    }
+
+    public static void copyUsername(Context ctx, String username) {
+        if (ctx == null || username == null || username.isEmpty()) {
+            return;
+        }
+        ClipboardManager clipboard =
+                (ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard != null) {
+            clipboard.setPrimaryClip(ClipData.newPlainText("username", username));
+        }
+        Toast.makeText(ctx, "Username copied", Toast.LENGTH_SHORT).show();
+    }
+
+    public static void openGhostddit(Context ctx, String username) {
+        if (ctx == null || username == null || username.isEmpty()) {
+            return;
+        }
+        String url = ghostdditUrl(username);
+        if (url == null) {
+            return;
+        }
+        try {
+            ctx.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(ctx, "No app found to open link", Toast.LENGTH_SHORT).show();
+        }
     }
 
     // Same output as android.net.Uri.encode(username), which is unavailable in
