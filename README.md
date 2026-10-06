@@ -8,7 +8,7 @@ Reddit patches for the Morphe patcher, plus automation that tracks upstream Redd
 
 | Patch | What it does | Target |
 | ----- | ------------ | ------ |
-| Share profile as username | When you share a user profile page, it shares just the username instead of the full link. | <!-- REDDIT-VERSION -->com.reddit.frontpage 2026.40.0 (exp)<!-- /REDDIT-VERSION --> |
+| Share profile as username | When you share a user profile page, it shares just the username instead of the full link. | <!-- REDDIT-VERSION -->com.reddit.frontpage 2026.39.0 (exp)<!-- /REDDIT-VERSION --> |
 
 ### Share profile as username
 
@@ -19,7 +19,7 @@ Reddit patches for the Morphe patcher, plus automation that tracks upstream Redd
 
 ## Compatibility
 
-- `com.reddit.frontpage` version <!-- REDDIT-VERSION -->2026.40.0<!-- /REDDIT-VERSION --> (experimental).
+- `com.reddit.frontpage` version <!-- REDDIT-VERSION -->2026.39.0<!-- /REDDIT-VERSION --> (experimental).
 - The pinned version lives in `reddit-target.txt` — it is the single source of truth. The version strings above update automatically (see below); never edit them by hand.
 - Backward-compatible with the stable and experimental Reddits Morphed builds (currently 2026.24.0 / 2026.39.0) — same share-formatter hook as upstream's sanitize patch.
 
