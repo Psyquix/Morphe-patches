@@ -20,10 +20,6 @@ object Constants {
                 version = "2026.39.0",
                 minSdk = 29,
                 isExperimental = true
-            ),
-            AppTarget(
-                version = "2026.24.0",
-                minSdk = 29
             )
         )
     )
