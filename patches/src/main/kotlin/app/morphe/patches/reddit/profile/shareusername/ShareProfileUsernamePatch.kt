@@ -77,9 +77,9 @@ private fun appendSmali(): String {
         check-cast v4, $ACTION_ITEM
         iget v4, v4, ${ACTION_ITEM}->a:I
         const v5, 0x${COPY_USERNAME_ID.toString(16)}
-        if-ne v4, v5, :morphe_list_end
+        if-eq v4, v5, :morphe_list_end
         const v5, 0x${OPEN_GHOSTDDIT_ID.toString(16)}
-        if-ne v4, v5, :morphe_list_end
+        if-eq v4, v5, :morphe_list_end
         add-int/lit8 v3, v3, 0x1
         goto :morphe_list_loop
         :morphe_list_build
