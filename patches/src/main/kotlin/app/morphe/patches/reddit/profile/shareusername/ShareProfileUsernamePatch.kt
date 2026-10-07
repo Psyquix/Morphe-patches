@@ -19,8 +19,9 @@ private const val ACTION_ITEM_CTOR =
         "ILandroid/os/Bundle;ZLjava/lang/String;I)V"
 
 // TEMPORARY DEBUG (revert before release): toasts tracing Hook 1 on-device.
-// Context via ActivityThread (version-independent). v23 holds the app
-// context for the whole prologue; nothing else touches v23.
+// Context is reloaded per call site (no cross-site register liveness);
+// v0-v2 are scratch at every site. All registers stay within v0-v15:
+// const/4 and non-range invoke-* encode 4-bit registers only.
 private fun dbgToast(tag: String, label: String, valueReg: String? = null, isInt: Boolean = false): String {
     val msg = if (valueReg == null) {
         """
@@ -52,46 +53,49 @@ private fun dbgToast(tag: String, label: String, valueReg: String? = null, isInt
         """.trimIndent()
     }
     return """
-        if-eqz v23, :morphe_dbg_skip_$tag
+        invoke-static {}, Landroid/app/ActivityThread;->currentApplication()Landroid/app/Application;
+        move-result-object v2
+        if-eqz v2, :morphe_dbg_skip_$tag
         $msg
-        invoke-static {v23, v0}, ${EXT}->dbgToast(Landroid/content/Context;Ljava/lang/String;)V
+        invoke-static {v2, v0}, ${EXT}->dbgToast(Landroid/content/Context;Ljava/lang/String;)V
         :morphe_dbg_skip_$tag
     """.trimIndent()
 }
 
 // Hook 1 prologue, inserted at index 0 of handler/a.c(List)List on both
 // versions (all references below are version-independent — verified identical
-// on 40.0 and 39.0). Uses v0-v9 scratch plus build range v8-v22; method c has
-// .locals 24 on both, so no register bump is needed. Falls through to the
-// original first instruction; every exit except the fallthrough is internal.
+// on 40.0 and 39.0). Register discipline: EVERYTHING stays within v0-v15
+// (const/4 and non-range invoke-* only encode 4-bit registers; using v16+
+// breaks dex assembly and crashes the sheet at runtime). v15 = list,
+// v14 = username, v13 = id temp, v12 = size, v11 = index, v10 = loop temp,
+// v0-v2 = scratch. Falls through to the original first instruction; every
+// exit except the fallthrough is internal.
 private fun appendSmali(): String {
     fun item(id: String, label: String, icon: String) = """
-        new-instance v8, $ACTION_ITEM
-        const v9, $id
-        const/4 v10, 0x0
-        const-string v11, "$label"
+        new-instance v0, $ACTION_ITEM
+        const v1, $id
+        const/4 v2, 0x0
+        const-string v3, "$label"
+        const/4 v4, 0x0
+        const/4 v5, 0x0
+        sget-object v6, ${ICON_ENUM}->$icon:$ICON_ENUM
+        const/4 v7, 0x0
+        const/4 v8, 0x0
+        const/4 v9, 0x0
+        const/16 v10, -0x2
+        const/4 v11, 0x0
         const/4 v12, 0x0
         const/4 v13, 0x0
-        sget-object v14, ${ICON_ENUM}->$icon:$ICON_ENUM
-        const/4 v15, 0x0
-        const/4 v16, 0x0
-        const/4 v17, 0x0
-        const/16 v18, -0x2
-        const/4 v19, 0x0
-        const/4 v20, 0x0
-        const/4 v21, 0x0
-        const v22, 0x1f7da
-        invoke-direct/range {v8 .. v22}, $ACTION_ITEM_CTOR
-        invoke-interface {v7, v8}, Ljava/util/List;->add(Ljava/lang/Object;)Z
-        move-result v8
+        const v14, 0x1f7da
+        invoke-direct/range {v0 .. v14}, $ACTION_ITEM_CTOR
+        invoke-interface {v15, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z
+        move-result v0
     """.trimIndent()
 
     return """
-        invoke-static {}, Landroid/app/ActivityThread;->currentApplication()Landroid/app/Application;
-        move-result-object v23
         ${dbgToast("entry", "MORPHE dbg: c() hit")}
-        move-object v7, p1
-        if-eqz v7, :morphe_list_end
+        move-object v15, p1
+        if-eqz v15, :morphe_list_end
         iget-object v0, p0, ${HANDLER}->a:$ARGS
         if-eqz v0, :morphe_list_end
         iget-object v0, v0, ${ARGS}->a:$SHAREABLE_DATA
@@ -111,28 +115,28 @@ private fun appendSmali(): String {
         invoke-virtual {v1}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
         move-result-object v1
         invoke-static {v1}, ${EXT}->extractUsername(Ljava/lang/String;)Ljava/lang/String;
-        move-result-object v6
-        if-eqz v6, :morphe_list_end
-        ${dbgToast("user", "MORPHE dbg: profile=", "v6")}
-        invoke-interface {v7}, Ljava/util/List;->size()I
-        move-result v2
-        const/4 v3, 0x0
+        move-result-object v14
+        if-eqz v14, :morphe_list_end
+        ${dbgToast("user", "MORPHE dbg: profile=", "v14")}
+        invoke-interface {v15}, Ljava/util/List;->size()I
+        move-result v12
+        const/4 v11, 0x0
         :morphe_list_loop
-        if-ge v3, v2, :morphe_list_build
-        invoke-interface {v7, v3}, Ljava/util/List;->get(I)Ljava/lang/Object;
-        move-result-object v4
-        check-cast v4, $ACTION_ITEM
-        iget v4, v4, ${ACTION_ITEM}->a:I
-        const v5, 0x${COPY_USERNAME_ID.toString(16)}
-        if-eq v4, v5, :morphe_list_end
-        const v5, 0x${OPEN_GHOSTDDIT_ID.toString(16)}
-        if-eq v4, v5, :morphe_list_end
-        add-int/lit8 v3, v3, 0x1
+        if-ge v11, v12, :morphe_list_build
+        invoke-interface {v15, v11}, Ljava/util/List;->get(I)Ljava/lang/Object;
+        move-result-object v10
+        check-cast v10, $ACTION_ITEM
+        iget v10, v10, ${ACTION_ITEM}->a:I
+        const v13, 0x${COPY_USERNAME_ID.toString(16)}
+        if-eq v10, v13, :morphe_list_end
+        const v13, 0x${OPEN_GHOSTDDIT_ID.toString(16)}
+        if-eq v10, v13, :morphe_list_end
+        add-int/lit8 v11, v11, 0x1
         goto :morphe_list_loop
         :morphe_list_build
         ${item("0x${COPY_USERNAME_ID.toString(16)}", "Copy username", COPY_USERNAME_ICON)}
         ${item("0x${OPEN_GHOSTDDIT_ID.toString(16)}", "Open ghostddit", OPEN_GHOSTDDIT_ICON)}
-        invoke-interface {v7}, Ljava/util/List;->size()I
+        invoke-interface {v15}, Ljava/util/List;->size()I
         move-result v4
         ${dbgToast("done", "MORPHE dbg: rows, size=", "v4", true)}
         :morphe_list_end
