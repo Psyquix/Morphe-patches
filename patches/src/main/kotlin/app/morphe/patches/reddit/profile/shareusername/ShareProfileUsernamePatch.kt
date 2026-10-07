@@ -215,12 +215,20 @@ val shareProfileUsernamePatch = bytecodePatch(
     extendWith("extensions/extension.mpe")
 
     execute {
-        // Atomic: both hooks or neither — appended rows without a click
-        // intercept would be dead buttons, so any miss no-ops to stock.
+        // Fail loudly on fingerprint miss: a silent no-op would install a
+        // stock-behaving app with no diagnostic trace. The patcher reports
+        // this error in its log, proving whether resolution succeeded.
         val listMethod = ProfileShareListFingerprint.matchOrNull()?.method
         val click40 = ProfileShareClick40Fingerprint.matchOrNull()?.method
         val click39 = ProfileShareClick39Fingerprint.matchOrNull()?.method
-        if (listMethod == null || (click40 == null && click39 == null)) return@execute
+        // Atomic: both hooks or neither — appended rows without a click
+        // intercept would be dead buttons, so any miss aborts the patch.
+        if (listMethod == null) {
+            error("Profile share actions: list hook fingerprint did not resolve; rows not injected")
+        }
+        if (click40 == null && click39 == null) {
+            error("Profile share actions: click hook fingerprint did not resolve; rows not injected")
+        }
 
         listMethod.addInstructions(0, appendSmali())
         if (click40 != null) {
