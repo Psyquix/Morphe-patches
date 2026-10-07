@@ -5,3 +5,6 @@ build/
 patches/build/
 extensions/extension/build/
 .local/
+
+# on-device diagnostic logs (kept on dev branches, never released)
+Crash-logs/

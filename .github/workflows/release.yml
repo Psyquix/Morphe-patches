@@ -88,4 +88,15 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
           printf 'Built for Reddit %s (experimental).\n' "$VER" > /tmp/opencode-notes.md
-          gh release create "$TAG" --title "$TAG" --notes-file /tmp/opencode-notes.md patches/build/libs/*.mpp
+          # Name the bundle after the release revision: <reddit>-morphe-ver-<NN>
+          # ships 0.<NN>.0.mpp (e.g. ver-13 -> 0.13.0.mpp). Downstream
+          # resolves the asset by '*.mpp' glob, so the name is cosmetic.
+          NN="${TAG##*-ver-}"
+          MPP="0.$((10#$NN)).0.mpp"
+          mapfile -t MPPS < <(compgen -G 'patches/build/libs/*.mpp')
+          if [ "${#MPPS[@]}" -ne 1 ]; then
+            echo "error: expected exactly one .mpp bundle, found ${#MPPS[@]}" >&2
+            exit 1
+          fi
+          mv "${MPPS[0]}" "patches/build/libs/$MPP"
+          gh release create "$TAG" --title "$TAG" --notes-file /tmp/opencode-notes.md "patches/build/libs/$MPP"
