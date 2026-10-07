@@ -8,3 +8,6 @@ extensions/extension/build/
 
 # on-device diagnostic logs (kept on dev branches, never released)
 Crash-logs/
+
+# on-device logs dropped at repo root
+*.log
