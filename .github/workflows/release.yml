@@ -96,7 +96,10 @@ jobs:
           # resolves the asset by '*.mpp' glob, so the name is cosmetic.
           # The bundle's internal version is set via -Pversion at build time.
           MPP="${{ steps.tag.outputs.mppver }}.mpp"
-          mapfile -t MPPS < <(compgen -G 'patches/build/libs/*.mpp')
+          # The test gate above already built patches-1.0.0.mpp; select the
+          # bundle matching this release's version (plugin names it
+          # patches-<version>.mpp) and normalize it to the exact asset name.
+          mapfile -t MPPS < <(compgen -G "patches/build/libs/*${{ steps.tag.outputs.mppver }}.mpp")
           if [ "${#MPPS[@]}" -ne 1 ]; then
             echo "error: expected exactly one .mpp bundle, found ${#MPPS[@]}" >&2
             exit 1
