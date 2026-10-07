@@ -49,7 +49,9 @@ private fun appendSmali(): String {
         move-object v7, p1
         if-eqz v7, :morphe_list_end
         iget-object v0, p0, ${HANDLER}->a:$ARGS
+        if-eqz v0, :morphe_list_end
         iget-object v0, v0, ${ARGS}->a:$SHAREABLE_DATA
+        if-eqz v0, :morphe_list_end
         instance-of v1, v0, $PROFILE_DATA
         if-eqz v1, :morphe_list_end
         check-cast v0, $PROFILE_DATA
@@ -93,8 +95,11 @@ private fun appendSmali(): String {
 // f on 39.0). Both methods are suspend state machines returning Object with
 // .locals 17; handled clicks return Kotlin Unit in-method (same-method
 // precedent at :goto_2..:goto_5), so returning Unit for our ids is correct.
-// All other ids fall through untouched. Context comes from handler fields:
-// field i (resource accessor) -> its Context field a.
+// All other ids fall through untouched. The username is re-validated through
+// extractUsername on the rebuilt share URL (same gate as Hook 1); any
+// unexpected null/non-profile data falls through to stock handling.
+// Context comes from handler fields: field i (resource accessor) -> its
+// Context field a. Uses v0-v5, within .locals 17.
 private fun clickSmali(
     wrapper: String,
     accessorType: String,
@@ -113,16 +118,34 @@ private fun clickSmali(
     const/4 v1, 0x1
     :morphe_click_resolve
     iget-object v2, p0, ${HANDLER}->a:$ARGS
+    if-eqz v2, :morphe_click_end
     iget-object v2, v2, ${ARGS}->a:$SHAREABLE_DATA
-    instance-of v3, v2, $PROFILE_DATA
-    if-eqz v3, :morphe_click_swallow
+    if-eqz v2, :morphe_click_end
+    instance-of v4, v2, $PROFILE_DATA
+    if-eqz v4, :morphe_click_end
     check-cast v2, $PROFILE_DATA
-    iget-object v3, v2, ${PROFILE_DATA}->b:Ljava/lang/String;
-    if-eqz v3, :morphe_click_swallow
+    iget-object v2, v2, ${PROFILE_DATA}->a:Ljava/lang/String;
+    if-eqz v2, :morphe_click_end
+    new-instance v4, Ljava/lang/StringBuilder;
+    invoke-direct {v4}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v5, "https://www.reddit.com"
+    invoke-virtual {v4, v5}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    move-result-object v4
+    invoke-virtual {v4, v2}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    move-result-object v4
+    invoke-virtual {v4}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v4
+    invoke-static {v4}, ${EXT}->extractUsername(Ljava/lang/String;)Ljava/lang/String;
+    move-result-object v3
+    if-eqz v3, :morphe_click_end
+    invoke-virtual {v3}, Ljava/lang/String;->length()I
+    move-result v4
+    if-eqz v4, :morphe_click_end
     iget-object v2, p0, ${HANDLER}->i:$accessorType
+    if-eqz v2, :morphe_click_end
     check-cast v2, $accessorClass
     iget-object v2, v2, ${accessorClass}->a:Landroid/content/Context;
-    if-eqz v2, :morphe_click_swallow
+    if-eqz v2, :morphe_click_end
     if-nez v1, :morphe_click_open
     invoke-static {v2, v3}, ${EXT}->copyUsername(Landroid/content/Context;Ljava/lang/String;)V
     goto :morphe_click_swallow
