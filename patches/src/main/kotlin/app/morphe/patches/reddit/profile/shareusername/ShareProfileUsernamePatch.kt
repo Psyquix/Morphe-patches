@@ -1,6 +1,6 @@
 package app.morphe.patches.reddit.profile.shareusername
 
-import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patches.reddit.shared.Constants.COMPATIBILITY_REDDIT
 
@@ -234,13 +234,13 @@ val shareProfileUsernamePatch = bytecodePatch(
             error("Profile share actions: click hook fingerprint did not resolve; rows not injected")
         }
 
-        listMethod.addInstructions(0, appendSmali())
+        listMethod.addInstructionsWithLabels(0, appendSmali())
         if (click40 != null) {
             // 2026.40.0: g(Ldb0;), resource accessor Llea0 check-cast Lkj2.
-            click40.addInstructions(0, clickSmali("Ldb0;", "Llea0;", "Lkj2;"))
+            click40.addInstructionsWithLabels(0, clickSmali("Ldb0;", "Llea0;", "Lkj2;"))
         } else {
             // 2026.39.0: f(Lya0;), resource accessor Lc3a0 check-cast Loi2.
-            click39!!.addInstructions(0, clickSmali("Lya0;", "Lc3a0;", "Loi2;"))
+            click39!!.addInstructionsWithLabels(0, clickSmali("Lya0;", "Lc3a0;", "Loi2;"))
         }
     }
 }
