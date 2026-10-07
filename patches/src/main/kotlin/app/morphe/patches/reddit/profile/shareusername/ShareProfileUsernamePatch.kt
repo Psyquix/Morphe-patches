@@ -18,6 +18,50 @@ private const val ACTION_ITEM_CTOR =
         "${ICON_ENUM}ZZLjava/util/List;" +
         "ILandroid/os/Bundle;ZLjava/lang/String;I)V"
 
+// TEMPORARY DEBUG (revert before release): toasts tracing Hook 1 on-device.
+// Context via ActivityThread (version-independent). v23 holds the app
+// context for the whole prologue; nothing else touches v23.
+private fun dbgToast(tag: String, label: String, valueReg: String? = null, isInt: Boolean = false): String {
+    val msg = if (valueReg == null) {
+        """
+        const-string v0, "$label"
+        """.trimIndent()
+    } else if (isInt) {
+        """
+        new-instance v0, Ljava/lang/StringBuilder;
+        invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+        const-string v1, "$label"
+        invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+        move-result-object v0
+        invoke-virtual {v0, $valueReg}, Ljava/lang/StringBuilder;->append(I)Ljava/lang/StringBuilder;
+        move-result-object v0
+        invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+        move-result-object v0
+        """.trimIndent()
+    } else {
+        """
+        new-instance v0, Ljava/lang/StringBuilder;
+        invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+        const-string v1, "$label"
+        invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+        move-result-object v0
+        invoke-virtual {v0, $valueReg}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+        move-result-object v0
+        invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+        move-result-object v0
+        """.trimIndent()
+    }
+    return """
+        if-eqz v23, :morphe_dbg_skip_$tag
+        $msg
+        const/4 v1, 0x1
+        invoke-static {v23, v0, v1}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
+        move-result-object v0
+        invoke-virtual {v0}, Landroid/widget/Toast;->show()V
+        :morphe_dbg_skip_$tag
+    """.trimIndent()
+}
+
 // Hook 1 prologue, inserted at index 0 of handler/a.c(List)List on both
 // versions (all references below are version-independent — verified identical
 // on 40.0 and 39.0). Uses v0-v9 scratch plus build range v8-v22; method c has
@@ -46,6 +90,9 @@ private fun appendSmali(): String {
     """.trimIndent()
 
     return """
+        invoke-static {}, Landroid/app/ActivityThread;->currentApplication()Landroid/app/Application;
+        move-result-object v23
+        ${dbgToast("entry", "MORPHE dbg: c() hit")}
         move-object v7, p1
         if-eqz v7, :morphe_list_end
         iget-object v0, p0, ${HANDLER}->a:$ARGS
@@ -69,6 +116,7 @@ private fun appendSmali(): String {
         invoke-static {v1}, ${EXT}->extractUsername(Ljava/lang/String;)Ljava/lang/String;
         move-result-object v6
         if-eqz v6, :morphe_list_end
+        ${dbgToast("user", "MORPHE dbg: profile=", "v6")}
         invoke-interface {v7}, Ljava/util/List;->size()I
         move-result v2
         const/4 v3, 0x0
@@ -87,6 +135,9 @@ private fun appendSmali(): String {
         :morphe_list_build
         ${item("0x${COPY_USERNAME_ID.toString(16)}", "Copy username", COPY_USERNAME_ICON)}
         ${item("0x${OPEN_GHOSTDDIT_ID.toString(16)}", "Open ghostddit", OPEN_GHOSTDDIT_ICON)}
+        invoke-interface {v7}, Ljava/util/List;->size()I
+        move-result v4
+        ${dbgToast("done", "MORPHE dbg: rows, size=", "v4", true)}
         :morphe_list_end
     """.trimIndent()
 }
