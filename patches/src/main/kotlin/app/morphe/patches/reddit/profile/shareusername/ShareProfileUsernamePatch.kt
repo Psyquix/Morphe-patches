@@ -1,6 +1,6 @@
 package app.morphe.patches.reddit.profile.shareusername
 
-import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patches.reddit.shared.Constants.COMPATIBILITY_REDDIT
 
@@ -94,9 +94,10 @@ private fun appendSmali(): String {
 
     return """
         ${dbgToast("entry", "MORPHE dbg: c() hit")}
-        move-object v15, p1
+        move-object/from16 v15, p1
+        move-object/from16 v13, p0
         if-eqz v15, :morphe_list_end
-        iget-object v0, p0, ${HANDLER}->a:$ARGS
+        iget-object v0, v13, ${HANDLER}->a:$ARGS
         if-eqz v0, :morphe_list_end
         iget-object v0, v0, ${ARGS}->a:$SHAREABLE_DATA
         if-eqz v0, :morphe_list_end
@@ -157,8 +158,10 @@ private fun clickSmali(
     accessorType: String,
     accessorClass: String,
 ): String = """
-    if-eqz p1, :morphe_click_end
-    iget-object v0, p1, ${wrapper}->a:$ACTION_ITEM
+    move-object/from16 v5, p1
+    move-object/from16 v2, p0
+    if-eqz v5, :morphe_click_end
+    iget-object v0, v5, ${wrapper}->a:$ACTION_ITEM
     iget v0, v0, ${ACTION_ITEM}->a:I
     const v1, 0x${COPY_USERNAME_ID.toString(16)}
     if-ne v0, v1, :morphe_click_ghost
@@ -169,7 +172,7 @@ private fun clickSmali(
     if-ne v0, v1, :morphe_click_end
     const/4 v1, 0x1
     :morphe_click_resolve
-    iget-object v2, p0, ${HANDLER}->a:$ARGS
+    iget-object v2, v2, ${HANDLER}->a:$ARGS
     if-eqz v2, :morphe_click_end
     iget-object v2, v2, ${ARGS}->a:$SHAREABLE_DATA
     if-eqz v2, :morphe_click_end
@@ -193,7 +196,7 @@ private fun clickSmali(
     invoke-virtual {v3}, Ljava/lang/String;->length()I
     move-result v4
     if-eqz v4, :morphe_click_end
-    iget-object v2, p0, ${HANDLER}->i:$accessorType
+    iget-object v2, v2, ${HANDLER}->i:$accessorType
     if-eqz v2, :morphe_click_end
     check-cast v2, $accessorClass
     iget-object v2, v2, ${accessorClass}->a:Landroid/content/Context;
@@ -234,13 +237,13 @@ val shareProfileUsernamePatch = bytecodePatch(
             error("Profile share actions: click hook fingerprint did not resolve; rows not injected")
         }
 
-        listMethod.addInstructionsWithLabels(0, appendSmali())
+        listMethod.addInstructions(0, appendSmali())
         if (click40 != null) {
             // 2026.40.0: g(Ldb0;), resource accessor Llea0 check-cast Lkj2.
-            click40.addInstructionsWithLabels(0, clickSmali("Ldb0;", "Llea0;", "Lkj2;"))
+            click40.addInstructions(0, clickSmali("Ldb0;", "Llea0;", "Lkj2;"))
         } else {
             // 2026.39.0: f(Lya0;), resource accessor Lc3a0 check-cast Loi2.
-            click39!!.addInstructionsWithLabels(0, clickSmali("Lya0;", "Lc3a0;", "Loi2;"))
+            click39!!.addInstructions(0, clickSmali("Lya0;", "Lc3a0;", "Loi2;"))
         }
     }
 }
