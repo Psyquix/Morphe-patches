@@ -54,10 +54,7 @@ private fun dbgToast(tag: String, label: String, valueReg: String? = null, isInt
     return """
         if-eqz v23, :morphe_dbg_skip_$tag
         $msg
-        const/4 v1, 0x1
-        invoke-static {v23, v0, v1}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
-        move-result-object v0
-        invoke-virtual {v0}, Landroid/widget/Toast;->show()V
+        invoke-static {v23, v0}, ${EXT}->dbgToast(Landroid/content/Context;Ljava/lang/String;)V
         :morphe_dbg_skip_$tag
     """.trimIndent()
 }

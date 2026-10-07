@@ -6,6 +6,8 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.Toast;
 
 import java.nio.charset.StandardCharsets;
@@ -60,6 +62,25 @@ public class ProfileShareActions {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (ActivityNotFoundException e) {
             Toast.makeText(ctx, "No app found to open link", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // TEMPORARY DEBUG (revert with the smali toasts): thread-proof toast —
+    // safe to call from any thread (suspend/coroutine contexts included).
+    public static void dbgToast(Context ctx, String message) {
+        if (ctx == null || message == null) {
+            return;
+        }
+        final Context appCtx = ctx.getApplicationContext();
+        final Context useCtx = appCtx != null ? appCtx : ctx;
+        try {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(useCtx, message, Toast.LENGTH_LONG).show();
+                }
+            });
+        } catch (Throwable ignored) {
         }
     }
 
