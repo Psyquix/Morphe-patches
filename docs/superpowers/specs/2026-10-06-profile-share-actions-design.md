@@ -1,7 +1,7 @@
 # Profile share actions — Design Spec
 Date: 2026-10-06
-Status: approved in chat (sections 1-4), pending file review
-Approach: A — clone-at-bind, latest exp + previous exp
+Status: sections 1-4 chat-approved; Revision A (§6) pending owner review (icon fallback)
+Approach: B — Compose ActionItem 2-hook (supersedes A / clone-at-bind, void per Phase 0)
 
 ## 1. Intent
 
@@ -57,6 +57,30 @@ Files touched:
 - `extensions/extension/.../ProfileShareActions.java` + `res/drawable/ic_copy_u.xml`, `ic_ghost.xml`
 - `extensions/extension/.../ProfileShareActionsTest.java`
 - `README.md` (patch table + description), `reddit-target.txt` unchanged (`2026.40.0`)
+
+## 6. Revision A — Compose ActionItem injection (2026-10-06, supersedes §§2–3 hook mechanism)
+
+Phase-0 finding (Task 3 report): the 2026.40.0/39.0 share sheet is Jetpack Compose
+(`ActionSheet extends ComposeBottomSheetScreen`; rows render from `ActionItem`
+Parcelable data via `ActionsViewModel.R(..)List`). There is no View/LayoutParams
+bind point, so clone-at-bind is void. Replacement design, same success criteria:
+
+- Hook 1 (list): in the profile funnel (`ShareableData$ShareableProfileData` /
+  `b.a(...)` factory path, or overflow-menu `ArrayList<ActionItem>` build), append
+  2 `ActionItem`s with fresh ids outside the action-type `hashCode()` range.
+  Gate on `extractUsername != null`; non-profiles unchanged.
+- Hook 2 (click): prologue on `handler/a.g(...)` (`onActionItemClicked`) matching
+  the 2 ids → `copyUsername` / `openGhostddit` with a Context from handler fields;
+  all other ids fall through untouched. Tag/duplicate-guard so rebinds add once.
+- Icons (revised): `IconEnum.Clipboard` + `IconEnum.External` (stable, non-obfuscated
+  on both versions). Custom U/ghost vectors cannot feed Compose rows without a
+  painter bridge — deferred as follow-up; icon selection lives in one place so the
+  swap is contained. Labels hardcoded English v1 (stock rows use `kj2.f(resId)`).
+- Per-version fingerprints (obfuscated leaves drifted 39→40, e.g. `kpi→w1f`;
+  resource ids drift, e.g. `label_copy_link_v2 0x7f1311f2→0x7f1311f4`): prefer
+  `IconEnum` + structural filters over literal ids/names. Fingerprint resolution is
+  only verifiable inside the patcher with the APK; final proof needs a device
+  apply-test on 40.0 + 39.0 (out of container scope — owner runs Task 4 manual).
 
 ## 5. Errors and testing (Section 4/4 — approved)
 

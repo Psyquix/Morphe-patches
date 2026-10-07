@@ -4,7 +4,7 @@
 
 **Goal:** Replace the username-rewriting patch with two injected share-sheet buttons (Copy username + Open ghostddit) on Reddit profiles.
 
-**Architecture:** Clone-at-bind — fingerprint the profile share bottom-sheet bind method on 2026.40.0 (+39.0 fallback), clone the [Copy link] button style for 2 siblings, delegate clicks to new extension statics.
+**Architecture:** Compose ActionItem 2-hook — append 2 rows on profile shares, intercept their clicks (rev A; clone-at-bind void per Phase 0)
 
 **Tech Stack:** Kotlin (Morphe bytecodePatch + Fingerprint), Java extension (ClipboardManager, ACTION_VIEW), Android vector drawables, JUnit5, Gradle.
 
@@ -103,39 +103,41 @@ git add extensions/extension/src/main/java/app/morphe/extension/reddit/profile/P
 git commit -m "feat: copy/open actions and button icons"
 ```
 
-### Task 3: Patch hook — fingerprint + clone-at-bind injection
+### Task 3: Patch hook — Compose ActionItem 2-hook injection (second attempt; supersedes clone-at-bind per Ruling R1)
 
 **Files:**
-- Modify: `patches/src/main/kotlin/app/morphe/patches/reddit/profile/shareusername/Fingerprints.kt`
-- Modify: `patches/src/main/kotlin/app/morphe/patches/reddit/profile/shareusername/ShareProfileUsernamePatch.kt` (rename patch to `Profile share actions`)
-- Delete: old `shortenProfileLink`/`wasShortened` call path and `extensions/extension/.../ShareProfileUsername.java` (already renamed in Task 1)
+- Modify: `patches/src/main/kotlin/app/morphe/patches/reddit/profile/shareusername/Fingerprints.kt` (already stubbed in d1e40f7 — verify/replace)
+- Modify: `patches/src/main/kotlin/app/morphe/patches/reddit/profile/shareusername/ShareProfileUsernamePatch.kt` (already renamed to `Profile share actions`, `execute` empty — fill in)
+- Delete: old `shortenProfileLink`/`wasShortened` call path (done in d1e40f7 — verify absent)
 
 **Interfaces:**
-- Consumes: `ProfileShareActions.extractUsername/copyUsername/openGhostddit`, `R.drawable.ic_copy_u/ic_ghost` from Tasks 1–2.
-- Produces: bytecode patch `profileShareActionsPatch` compatible with 2026.40.0 + 2026.39.0, injecting 2 buttons at bind time.
+- Consumes: `ProfileShareActions.extractUsername/copyUsername/openGhostddit` from Tasks 1–2; Phase-0 evidence in `.superpowers/sdd/2026-10-06-profile-share-actions/task-3-report.md` §1 (decompiled trees at `/tmp/opencode/task3-apk/reddit{40,39}-decompiled/`, may be gone — re-download per report §1 if so).
+- Produces: bytecode patch `profileShareActionsPatch` compatible with 2026.40.0 + 2026.39.0, appending 2 `ActionItem`s on profile shares and intercepting their clicks. Icon enum choice (single constant, swappable): `IconEnum.Clipboard` for Copy username, `IconEnum.External` for Open ghostddit. Labels hardcoded English v1: `"Copy username"`, `"Open ghostddit"`.
 
-- [ ] **Step 1: Phase 0 — locate the share-sheet bind method on 2026.40.0 APKM**
+- [ ] **Step 1: Confirm Phase-0 targets still on disk (re-acquire if missing)**
 
-Obtain APKM via Morphe desktop fetch or manual download; decompile with `apktool`/`jadx` (install if missing). Search for `Copy link` string ID and its containing Fragment/ViewHolder bind method; record smali signature (access flags, return type, params, distinguishing method calls). Spot-check same method on `2026.39.0`. If no stable bind method exists, fall back to dialog-show + text-search per spec section 3 fallback — do not invent a fingerprint.
+Check `/tmp/opencode/task3-apk/reddit40-decompiled/` and `reddit39-decompiled/` exist; if not, re-download per report §1 (APKMirror ids in report) and re-decompile with apktool. Confirm: `ActionItem` synthetic ctor `(IILjava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Lcom/reddit/ui/compose/icons/IconEnum;ZZLjava/util/List;ILandroid/os/Bundle;ZLjava/lang/String;I)V` identical on both; `handler/a.c(List)List` leaves Copy-link insertion for posts/subs; `handler/a.g(db0, Continuation)` click dispatch with `hashCode()` id compare and `sheet.e1.n1(id)` dismiss fallthrough.
 
-- [ ] **Step 2: Replace `Fingerprints.kt` with sheet fingerprints**
+- [ ] **Step 2: Finalize `Fingerprints.kt` for the two hooks**
 
-Define `ProfileShareSheetFingerprint40` (and `ProfileShareSheetFingerprint39` if signatures differ) using `Fingerprint(accessFlags, returnType, parameters, filters)` with the Phase-0 signals. Keep file in same package.
+Hook 1 (list append): fingerprint the profile-side `ArrayList<ActionItem>` build or the `b.a(...)` factory path gated to `ShareableProfileData`/`ShareEntryPoint.Profile` — prefer `IconEnum` + structural filters over literal res ids (ids drift: `label_copy_link_v2 0x7f1311f2`→`0x7f1311f4`) and over obfuscated leaf names (drift: `kpi→w1f`). One fingerprint per version if needed. Hook 2 (click): fingerprint `handler/a.g` by its `ActionItem`-param + `Continuation` + `hashCode()`-compare shape. Keep the UNVERIFIED marking convention only until a fingerprint is actually exercised; delete any fingerprint left unused.
 
-- [ ] **Step 3: Rewrite patch to clone-at-bind**
+- [ ] **Step 3: Implement the 2-hook injection in `ShareProfileUsernamePatch.kt`**
 
-In `ShareProfileUsernamePatch.kt`: rename to `name = "Profile share actions"`, keep `compatibleWith(COMPATIBILITY_REDDIT)`, keep `extendWith("extensions/extension.mpe")`. In `execute`, delete the `ShareProfileLinkFingerprint` prologue; instead hook the sheet fingerprint: resolve [Copy link] view, call `ProfileShareActions.extractUsername(shareUrl)` — if null return without injecting; else clone `LayoutParams`/styling for 2 `ImageButton`/`MaterialButton` siblings with `ic_copy_u` / `ic_ghost`, set tags to prevent duplicates, wire `OnClickListener` to `copyUsername` / `openGhostddit`. Tag constant, e.g. `PROFILE_SHARE_TAG = "morphe_profile_share"`.
+Hook 1: after the profile list is built, call `ProfileShareActions.extractUsername(shareUrl)` — null means append nothing; else append 2 `ActionItem`s with fresh ids outside the action-type `hashCode()` range (verify against the singletons in smali), labels `"Copy username"` / `"Open ghostddit"`, icons `Clipboard` / `External`, guarded so a rebind appends once. Hook 2: prologue on the click dispatch matching the 2 ids → `copyUsername` / `openGhostddit` with a Context resolved from handler fields; every other id falls through untouched. Do not touch the Copy-link/Share-via insertion path.
 
-- [ ] **Step 4: Verify patch compiles**
+- [ ] **Step 4: Verify patch compiles and unit tests pass**
 
 Run: `./gradlew :patches:buildAndroid`
-Expected: PASS (fingerprint resolution errors fail here, not silently).
+Expected: PASS.
+Run: `./gradlew :extensions:extension:testDebugUnitTest`
+Expected: PASS (19/19). State plainly in the report that fingerprint resolution is NOT verified here (resolves only inside the patcher with the APK) and device apply-test on 40.0 + 39.0 remains owner-side (Task 4 manual).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add patches/src/main/kotlin/app/morphe/patches/reddit/profile/shareusername/
-git commit -m "feat: clone-at-bind profile share actions for 40 and 39"
+git commit -m "feat: Compose ActionItem share hooks for 40 and 39"
 ```
 
 ### Task 4: Compatibility, cleanup, docs
