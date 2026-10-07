@@ -1,6 +1,7 @@
 package app.morphe.patches.reddit.profile.shareusername
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.instanceOf
 import app.morphe.patcher.fieldAccess
 import app.morphe.patcher.methodCall
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -8,29 +9,29 @@ import com.android.tools.smali.dexlib2.AccessFlags
 /**
  * Hooks for the profile share sheet on 2026.40.0 and 2026.39.0.
  *
- * Phase-0 result (see `.superpowers/sdd/2026-10-06-profile-share-actions/task-3-report.md`
- * §1): the sheet is Jetpack Compose driven by `ActionItem` data objects.
- * Hook 1 appends 2 rows to the profile action list; Hook 2 intercepts their
- * clicks. All references below were transcribed from apktool output of both
- * APKs (trees at `/tmp/opencode/task3-apk/reddit{40,39}-decompiled/`).
+ * The sheet is Jetpack Compose driven by `ActionItem` data objects. Hook 1
+ * appends 2 rows to the profile action list; Hook 2 intercepts their clicks.
+ * All references below were transcribed from apktool output of both APKs.
  *
- * - [ProfileShareListFingerprint]: `handler/a.c(List)List`, the list
- *   post-processor both share entries funnel through (called with
- *   `ActionSheet$Args.b`). Matches exactly one method per APK (verified by
- *   whole-tree simulation script, `sim_fp2.py`). Filters use the
- *   non-obfuscated `IconEnum` refs because resource ids drift per version
- *   (`label_copy_link_v2`: 0x7f1311f2 on 40.0 → 0x7f1311f4 on 39.0).
+ * Matching rules that MUST be honored (learned from a silent miss):
+ * - The patcher matches instruction filters IN LISTED ORDER (each filter
+ *   scans forward from the previous match; any miss fails the method). List
+ *   filters in the exact order the instructions appear in the target method.
+ * - Avoid obfuscated type names anywhere: R8 renames them per build, so a
+ *   fingerprint containing them resolves on the fingerprinted APK only.
+ *   Prefer stable `ActionItem`/`IconEnum` refs, omit parameter lists whose
+ *   types are obfuscated, and match calls by defining class + name only.
+ *
+ * - [ProfileShareListFingerprint]: `handler/a.c(List)List`. Verified signal
+ *   order on both versions: `IconEnum.Share` sget → `ActionItem.<init>` →
+ *   `IconEnum.Link` sget → `ArrayList.add(int, Object)`. No other method
+ *   app-wide contains this ordered combination.
  * - [ProfileShareClick40Fingerprint] / [ProfileShareClick39Fingerprint]:
- *   the click dispatch (`onActionItemClicked` state machine). The method name
- *   and wrapper type drifted (`g(Ldb0;)` on 40.0 → `f(Lya0;)` on 39.0), hence
- *   one fingerprint per version; each matches exactly one method on its
- *   version and nothing on the other (verified by simulation, `sim_fp3.py`).
- *   Shape filters: reads `ActionItem.a` (the row id) and compares against
- *   action-type `hashCode()`s.
- *
- * Resolution status: compile-checked here; live resolution inside the patcher
- * runs on the owner's device (Task 4 manual). On a miss the patch no-ops to
- * the stock sheet (see `ShareProfileUsernamePatch.execute`).
+ *   the click dispatch (`g` on 40.0, `f` on 39.0; same body shape).
+ *   Verified signal order on both: `instance-of
+ *   ...onActionItemClicked$1` (unique app-wide) → `ActionItem.a` read →
+ *   `hashCode()` call. Obfuscated wrapper/continuation types are deliberately
+ *   NOT constrained; the g-vs-f split only selects the injected smali.
  */
 
 // ActionItem ids for the injected rows. Must avoid the two literal ids the
@@ -57,9 +58,9 @@ internal object ProfileShareListFingerprint : Fingerprint(
     returnType = "Ljava/util/List;",
     parameters = listOf("Ljava/util/List;"),
     filters = listOf(
+        fieldAccess(smali = "Lcom/reddit/ui/compose/icons/IconEnum;->Share:Lcom/reddit/ui/compose/icons/IconEnum;"),
         methodCall(smali = ACTION_ITEM_CTOR),
         fieldAccess(smali = "Lcom/reddit/ui/compose/icons/IconEnum;->Link:Lcom/reddit/ui/compose/icons/IconEnum;"),
-        fieldAccess(smali = "Lcom/reddit/ui/compose/icons/IconEnum;->Share:Lcom/reddit/ui/compose/icons/IconEnum;"),
         methodCall(smali = "Ljava/util/ArrayList;->add(ILjava/lang/Object;)V")
     )
 )
@@ -67,13 +68,15 @@ internal object ProfileShareListFingerprint : Fingerprint(
 internal object ProfileShareClick40Fingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "Ljava/lang/Object;",
-    parameters = listOf("Ldb0;", "Lkotlin/coroutines/jvm/internal/ContinuationImpl;"),
     filters = listOf(
-        fieldAccess(smali = "Lcom/reddit/sharing/actions/ActionItem;->a:I"),
-        methodCall(smali = "Ljava/lang/Object;->hashCode()I"),
+        instanceOf("Lcom/reddit/sharing/actions/handler/ActionsScreenEventHandler\$onActionItemClicked\$1;"),
+        fieldAccess(
+            definingClass = "Lcom/reddit/sharing/actions/ActionItem;",
+            name = "a"
+        ),
         methodCall(
-            smali = "Lcom/reddit/sharing/actions/handler/ActionsScreenEventHandler\$onActionItemClicked\$1" +
-                ";-><init>(Lcom/reddit/sharing/actions/handler/a;Lasc;)V"
+            definingClass = "Ljava/lang/Object;",
+            name = "hashCode"
         )
     )
 )
@@ -81,13 +84,15 @@ internal object ProfileShareClick40Fingerprint : Fingerprint(
 internal object ProfileShareClick39Fingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "Ljava/lang/Object;",
-    parameters = listOf("Lya0;", "Lkotlin/coroutines/jvm/internal/ContinuationImpl;"),
     filters = listOf(
-        fieldAccess(smali = "Lcom/reddit/sharing/actions/ActionItem;->a:I"),
-        methodCall(smali = "Ljava/lang/Object;->hashCode()I"),
+        instanceOf("Lcom/reddit/sharing/actions/handler/ActionsScreenEventHandler\$onActionItemClicked\$1;"),
+        fieldAccess(
+            definingClass = "Lcom/reddit/sharing/actions/ActionItem;",
+            name = "a"
+        ),
         methodCall(
-            smali = "Lcom/reddit/sharing/actions/handler/ActionsScreenEventHandler\$onActionItemClicked\$1" +
-                ";-><init>(Lcom/reddit/sharing/actions/handler/a;Lloc;)V"
+            definingClass = "Ljava/lang/Object;",
+            name = "hashCode"
         )
     )
 )
